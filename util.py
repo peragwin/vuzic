@@ -13,9 +13,9 @@ PA_DEVICE_KEYS = [
 
 def power_spectrum(frame: np.ndarray) -> np.ndarray:
     ln = len(frame) // 2
-    return ln * np.square(
-        np.fft.rfft(frame)[:ln]
-    )
+    return np.square(
+        np.fft.rfft(frame)[1:]
+    ) / ln
 
 
 def log_power_spectrum(frame: np.ndarray) -> np.ndarray:

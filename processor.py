@@ -73,7 +73,10 @@ class Processor:
 
 
 class Multiprocessor(Processor):
-	def __init__(processors: List[Processor]):
+	def __init__(self, processors: List[Processor]):
+		ns = processors[0].n_samples
+		fs = processors[0].fs
+		super().__init__(ns, fs)
 		self.processors = processors
 
 	def process_frames(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
@@ -83,4 +86,18 @@ class Multiprocessor(Processor):
 	def begin(self):
 		for p in self.processors:
 			p.begin()
+
+	@property
+	def end_stream(self):
+		return self._end_stream
+
+	@end_stream.setter
+	def end_stream(self, fn):
+		def _fn():
+			for p in self.processors:
+				p.done = True
+			fn()
+		self._end_stream = _fn
+		for p in self.processors:
+			p.end_stream = _fn
 

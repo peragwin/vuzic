@@ -28,6 +28,7 @@ class Waterfall(Processor):
 
         self.bucketer = Bucketer(n_samples // 2, n_buckets, 40, fs // 2)
 
+        self.done = False
 
     def process_frames(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
         frame0, frame1 = frames
@@ -80,7 +81,7 @@ class Waterfall(Processor):
         print("press 'q' to quit")
         alpha = 1.0
         beta = 1.0
-        while key != ord('q'):
+        while not self.done and key != ord('q'):
             alpha = .95 * alpha + .05 * np.max(self.ffts)
             data = np.flip(
                     np.transpose(
@@ -93,6 +94,8 @@ class Waterfall(Processor):
             image = cv2.blur(image, (5,3))
             cv2.imshow('Spectrum', image)
 
+            #print(image[0][0])
+
             beta = .95 * beta + .05 * np.max(self.buckets)
             data = np.flip(
                     np.transpose(
@@ -102,7 +105,7 @@ class Waterfall(Processor):
             # if mx == 0:
             scaled = cv2.convertScaleAbs(data, alpha=255/beta)
             image = cv2.applyColorMap(scaled, cv2.COLORMAP_OCEAN)
-            image = cv2.blur(image, (5,27))
+            image = cv2.blur(image, (5,15))
             cv2.imshow('Buckets', image)
 
 
