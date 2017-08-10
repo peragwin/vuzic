@@ -229,6 +229,8 @@ class DemoDisplay:
         # finally, apply the output of the second filter as feedback 
         output[0] += output[1]
 
+    # XXX figure out why some channels seem to get "stuck" inverted 
+
     def applyChannelEffects(self):
         dg = self.config.diff_gain
         ag = self.config.amp_gain
