@@ -5,6 +5,10 @@ from waterfall import Waterfall
 from sim_led_grid import SimLedGrid
 from processor import Multiprocessor
 
+import graphene
+
+from server import Server
+
 from util import Bucketer, log_power_spectrum, NP_FMT
 
 def main(device: int = -1, mode: str = 'by_row'):
@@ -19,6 +23,10 @@ def main(device: int = -1, mode: str = 'by_row'):
     P = Multiprocessor([W, G])
 
     A = AudioCtx(P, n_samples=N_SAMPLES, fs=FS, device_index=device)
+
+    dc = G.sub_processor.config
+    schema = graphene.Schema(query=dc.Query, mutation=dc.Mutations)
+    S = Server(schema=schema)
 
     A.run()
 
