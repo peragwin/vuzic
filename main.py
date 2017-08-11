@@ -24,9 +24,12 @@ def main(device: int = -1, mode: str = 'by_row'):
 
     A = AudioCtx(P, n_samples=N_SAMPLES, fs=FS, device_index=device)
 
+    # todo: apply median filter to denoise
     dc = G.sub_processor.config
     schema = graphene.Schema(query=dc.Query, mutation=dc.Mutations)
     S = Server(schema=schema)
+    S.start()
+    P.exit_funcs.append(S.stop)
 
     A.run()
 

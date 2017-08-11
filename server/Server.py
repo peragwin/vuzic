@@ -15,7 +15,7 @@ class Server:
 		self.host = host
 		self.port = port
 
-		self.loop = loop = asyncio.get_event_loop()
+		self.loop = loop = asyncio.new_event_loop()
 		app = web.Application(loop=loop)
 
 		app.router.add_get('/', self.index)
@@ -24,7 +24,8 @@ class Server:
 		self.app = app
 
 	def start(self):
-		t = threading.Thread(target=self.loop.run_until_complete(self._start()))
+		tgt = self.loop.create_task if self.loop.is_running() else self.loop.run_until_complete
+		t = threading.Thread(target=tgt, args=[self._start()])
 		t.start()
 
 	async def _start(self):
@@ -44,8 +45,14 @@ class Server:
 	async def graphql(self, request):
 		print("POST => '/graphql'", request)
 		query = await request.text()
-		resp = self.schema.execute(query)
-		return web.json_response(resp)
+		try:
+			ex = self.schema.execute(query)
+			return web.json_response({
+				'data': ex.data,
+				'errors': str(ex.errors),
+			})
+		except Exception as e:
+			return web.json_response({'errors': [str(e)]})
 
 
 if __name__ == '__main__':
@@ -54,5 +61,7 @@ if __name__ == '__main__':
 		S.start()
 	except KeyboardInterrupt:
 		print('interrupt')
+
+	import time; time.sleep(1)
 
 	S.stop()

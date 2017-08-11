@@ -58,46 +58,49 @@ class Processor:
         return frame0, frame1
 
     def process_frames(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
-    	""" Function to be defined by individual processor modules """
-    	pass
+        """ Function to be defined by individual processor modules """
+        pass
 
     def process(self, data: np.ndarray) -> None:
-    	""" Function to call process_frames with frames created by process_raw
-			allows other processors to share a common raw buffer
-    	"""
-    	self.process_frames(
-    		self.process_raw(data))
+        """ Function to call process_frames with frames created by process_raw
+            allows other processors to share a common raw buffer
+        """
+        self.process_frames(
+            self.process_raw(data))
 
     def begin(self):
         pass
 
 
 class Multiprocessor(Processor):
-	def __init__(self, processors: List[Processor]):
-		ns = processors[0].n_samples
-		fs = processors[0].fs
-		super().__init__(ns, fs)
-		self.processors = processors
+    def __init__(self, processors: List[Processor]):
+        ns = processors[0].n_samples
+        fs = processors[0].fs
+        super().__init__(ns, fs)
+        self.processors = processors
 
-	def process_frames(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
-		for p in self.processors:
-			p.process_frames(frames)
+        self.exit_funcs = []
 
-	def begin(self):
-		for p in self.processors:
-			p.begin()
+    def process_frames(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
+        for p in self.processors:
+            p.process_frames(frames)
 
-	@property
-	def end_stream(self):
-		return self._end_stream
+    def begin(self):
+        for p in self.processors:
+            p.begin()
 
-	@end_stream.setter
-	def end_stream(self, fn):
-		def _fn():
-			for p in self.processors:
-				p.done = True
-			fn()
-		self._end_stream = _fn
-		for p in self.processors:
-			p.end_stream = _fn
+    @property
+    def end_stream(self):
+        return self._end_stream
 
+    @end_stream.setter
+    def end_stream(self, fn):
+        def _fn():
+            for fun in self.exit_funcs:
+                fun()
+            for p in self.processors:
+                p.done = True
+            fn()
+        self._end_stream = _fn
+        for p in self.processors:
+            p.end_stream = _fn
