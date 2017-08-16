@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple, List, Callable
-from util import NP_FMT
+from ..util import NP_FMT
+from ..bus import bus
 from abc import abstractmethod, ABCMeta
 
 
@@ -30,7 +31,8 @@ class RawInputProcessor(Processor):
 
         self.child_processor = child_processor
 
-    def register_input(n_samples: int,
+    def register_input(self,
+                       n_samples: int,
                        fs: int,
                        n_channels: int,
                        end_stream: Callable[[], None]) -> None:
@@ -40,14 +42,18 @@ class RawInputProcessor(Processor):
         self.end_stream = end_stream
 
         # going to 50% overlap between frames, so n_samples * 2
-        self.buffer = np.zeros((n_samples * 2, n_channels), dtype=NP_FMT)
+        self.buffer = np.zeros((n_channels, n_samples * 2), dtype=NP_FMT)
         self.idx_first_quarter = n_samples // 2
         self.idx_last_quarter = n_samples + self.idx_first_quarter
 
         self.input_registered = True
 
         if self.child_processor:
-            self.child_processor.register_input(n_samples, fs, n_channels, end_stream)
+            self.child_processor.register_input(
+                n_samples=n_samples,
+                fs=fs,
+                n_channels=n_channels,
+                end_stream=end_stream)
 
     def get_overlapping_frames(self) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -75,17 +81,17 @@ class RawInputProcessor(Processor):
             f = self.idx_last_quarter
             g = f
             h = self.n_samples * 2
-        first = np.r_[self.buffer[a:b], self.buffer[c:d]]
-        second = np.r_[self.buffer[e:f], self.buffer[g:h]]
+        first = np.c_[self.buffer[:, a:b], self.buffer[:, c:d]]
+        second = np.c_[self.buffer[:, e:f], self.buffer[:, g:h]]
         return first, second
 
     def process_raw(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """ process_samples adds samples to a circular buffer """
         for i in range(self.n_channels):
             if self.buffer_toggle == 0:
-                self.buffer[self.n_samples:, i] = data[i::2]
+                self.buffer[i, self.n_samples:] = data[i::self.n_channels]
             else:
-                self.buffer[:self.n_samples, i] = data[i::2]
+                self.buffer[i, :self.n_samples] = data[i::self.n_channels]
 
         frame0, frame1 = self.get_overlapping_frames()
 
@@ -107,6 +113,9 @@ class RawInputProcessor(Processor):
         if self.child_processor:
             self.child_processor.begin()
 
+    def end_stream(self):
+        bus.publish("end_stream")
+
 
 # class ChainProcessor(Processor):
 #     def __init__(self, processors: List[Processor]):
@@ -123,7 +132,7 @@ class Multiprocessor(Processor):
 
         self.exit_funcs = []
 
-    def register_input(*args, *kwargs):
+    def register_input(*args, **kwargs):
         for p in self.processors:
             p.register_input(*args, **kwargs)
 

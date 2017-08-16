@@ -12,9 +12,9 @@ PA_DEVICE_KEYS = [
 ]
 
 def power_spectrum(frame: np.ndarray) -> np.ndarray:
-    ln = len(frame) // 2
+    ln = (len(frame[0]) - 1)  // 2
     return np.square(
-        np.fft.rfft(frame)[1:]
+        np.fft.rfft(frame, axis=1)[:, 1:]
     ) / ln
 
 
@@ -55,12 +55,14 @@ class Bucketer:
 
     def __init__(self,
                  frame_size: int,
-                 N: int,
+                 n_buckets: int,
+                 n_channels: int,
                  f_min: int,
                  f_max: int,
                  scale: str = 'mel'):
 
-        self.N = N
+        self.n_buckets = n_buckets
+        self.n_channels = n_channels
         self.f_min = f_min
         self.f_max = f_max
 
@@ -68,7 +70,7 @@ class Bucketer:
             "scale must be one of {}".format(self.scales.keys())
         self.scale = self.scales[scale]
 
-        buckets = self.get_freq_buckets(self.scale, f_min, f_max, N)
+        buckets = self.get_freq_buckets(self.scale, f_min, f_max, n_buckets)
         self.indices = np.int32(
             np.ceil(frame_size * buckets / f_max)
         )
@@ -79,10 +81,10 @@ class Bucketer:
         return s.From(np.linspace(s.To(f_min), s.To(f_max), N))
 
     def bucket(self, frame: np.ndarray) -> np.ndarray:
-        bucket = np.zeros(self.N, dtype=np.float64)
+        bucket = np.zeros((self.n_channels, self.n_buckets), dtype=np.float64)
         a = 0
-        for i in range(self.N):
+        for i in range(self.n_buckets):
             b = self.indices[i]
-            bucket[i] = np.average(frame[a:b])
+            bucket[:, i] = np.average(frame[:, a:b], axis=1)
             a = b
         return bucket

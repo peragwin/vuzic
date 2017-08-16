@@ -6,15 +6,16 @@ import numpy as np
 from pprint import pprint
 from typing import Coroutine, Any, Callable, Tuple
 
-from processor import Processor
+from .Processor import Processor
 
-from util import NP_FMT, PA_FMT, PA_DEVICE_KEYS
+from ..util import NP_FMT, PA_FMT, PA_DEVICE_KEYS
+from ..bus import bus
 
 
-class AudioCtx(object):
+class DeviceContext:
 
     def __init__(self,
-                 sample_processor: Processor,
+                 processor: Processor,
                  n_samples: int = 1024,
                  n_channels: int = 1,
                  fs: int = 44100,
@@ -40,13 +41,16 @@ class AudioCtx(object):
 
         self.stream_thread = None
         self.stop_streaming = False
-        # this closure can be passed to the processor and called when it finishes
+        
         def end_stream():
             self.stop_streaming = True
+        bus.subscribe("end_stream", end_stream)
 
-        assert isinstance(sample_processor, Processor)
-        sample_processor.end_stream = end_stream
-        self.sample_processor = sample_processor
+        processor.register_input(n_samples=n_samples,
+                                 fs=fs,
+                                 n_channels=n_channels,
+                                 end_stream=end_stream)
+        self.processor = processor
 
     def new_input_streamer(self) -> Callable[[], Coroutine[Any, Any, np.ndarray]]:
         stream = self.pa.open(format=PA_FMT,
@@ -83,7 +87,7 @@ class AudioCtx(object):
             self.process_samples(data)
 
     def process_samples(self, samples: np.ndarray) -> None:
-        self.sample_processor.process(samples)
+        self.processor.process(samples)
 
     def begin_stream(self):
         # Create an event loop to host the audio streamer
@@ -96,8 +100,11 @@ class AudioCtx(object):
         self.stream_thread = threading.Thread(target=_stream, name="streamer")
         self.stream_thread.start()
 
+    def end_stream(self):
+        bus.publish("end_stream")
+
     def begin_processing(self):
-        self.sample_processor.begin()
+        self.processor.begin()
 
     def run(self):
         self.begin_stream()
