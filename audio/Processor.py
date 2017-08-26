@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Tuple, List, Callable
+from typing import Tuple, List, Callable, Dict
 from ..util import NP_FMT
 from ..bus import bus
 from abc import abstractmethod, ABCMeta
@@ -11,49 +11,52 @@ class Processor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def register_input(self) -> None:
-        pass
+    def register_input(self, **kwargs) -> None:
+        self.input_registered = True
+        if self.child_processor:
+            self.child_processor.register_input(**kwargs)
+
+    def __init__(self, **kwargs) -> None:
+        self.input_registered = False
+        self.args = kwargs
+
+    def attach_child(self, child_processor: Processor) -> None:
+        child_processor.register_input(**self.args)
+        self.child_processor = child_processor
+
+    def begin(self):
+        assert self.input_registered, "must register input parameters"
+        if self.child_processor:
+            self.child_processor.begin()
+
+    def end_stream(self):
+        bus.publish("end_stream")
+
 
 class RawInputProcessor(Processor):
 
-    def __init__(self, child_processor: Processor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         self.n_samples = 0
-        self.fs = 0
         self.n_channels = 0
-        self.end_stream = lambda: None
-        self.input_registered = False
 
-
-        self.buffer = np.zeros(0) 
+        self.buffer = np.zeros(0)
         self.buffer_toggle = 0
         self.idx_first_quarter = 0
         self.idx_last_quarter = 0
 
-        self.child_processor = child_processor
+    def register_input(self, **kwargs) -> None:
 
-    def register_input(self,
-                       n_samples: int,
-                       fs: int,
-                       n_channels: int,
-                       end_stream: Callable[[], None]) -> None:
-        self.n_samples = n_samples
-        self.fs = fs
-        self.n_channels = n_channels
-        self.end_stream = end_stream
+        self.n_samples = n_samples = kwargs['n_samples']
+        self.n_channels = n_channels = kwargs['n_channels']
 
         # going to 50% overlap between frames, so n_samples * 2
         self.buffer = np.zeros((n_channels, n_samples * 2), dtype=NP_FMT)
         self.idx_first_quarter = n_samples // 2
         self.idx_last_quarter = n_samples + self.idx_first_quarter
 
-        self.input_registered = True
-
-        if self.child_processor:
-            self.child_processor.register_input(
-                n_samples=n_samples,
-                fs=fs,
-                n_channels=n_channels,
-                end_stream=end_stream)
+        super().register_input(**kwargs)
 
     def get_overlapping_frames(self) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -103,18 +106,15 @@ class RawInputProcessor(Processor):
         """ Function to call process_frames with frames created by process_raw
             allows other processors to share a common raw buffer
         """
-        assert self.input_registered, "must register input parameters"
+        
 
         out = self.process_raw(data)
+
+        super().process()
         if self.child_processor:
             self.child_processor.process(out)
 
-    def begin(self):
-        if self.child_processor:
-            self.child_processor.begin()
 
-    def end_stream(self):
-        bus.publish("end_stream")
 
 
 # class ChainProcessor(Processor):

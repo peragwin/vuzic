@@ -13,19 +13,20 @@ from ..bus import bus
 from vuzic.util import Bucketer, log_power_spectrum, NP_FMT
 
 
-class Waterfall(Processor):
+class SpectralBucketer(Processor):
 
-    def __init__(self, n_frames: int, n_buckets: int = 16):
+    def __init__(self, n_frames: int, n_buckets: int = 16, show_anim=True):
         
+        # Variables that need to be registered
         self.n_frames = 0
         self.fs = 0
         self.n_channels = 0
         self.n_frames = 0
-        self.end_stream = lambda: None
 
         self.n_frames = n_frames
         self.n_buckets = n_buckets
         self.bucket_repeat = 512 // n_buckets
+        self.show_anim = show_anim
 
         self.ffts = np.zeros(0)
         self.buckets = np.zeros(0)
@@ -34,7 +35,7 @@ class Waterfall(Processor):
         self.stream_thread = None
         self.done = False
 
-    def register_input(self, n_samples, fs, n_channels, end_stream):
+    def register_input(self, n_samples, fs, n_channels):
         self.n_samples = n_samples
         self.fs = fs
         self.n_channels = n_channels
@@ -44,10 +45,6 @@ class Waterfall(Processor):
         self.buckets = np.zeros((n_channels, self.n_frames, self.n_buckets), dtype=NP_FMT)
 
         self.bucketer = Bucketer(n_samples // 2, self.n_buckets, n_channels, 40, fs // 2)
-
-        def _end_stream():
-            self.done = True
-        bus.subscribe("end_stream", _end_stream)
 
     def process(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
         frame0, frame1 = frames
@@ -137,14 +134,25 @@ class Waterfall(Processor):
         self.end_stream()
 
     def begin(self):
+
+        def _set_done():
+            self.done = True
+
+        bus.subscribe("end_stream", _set_done)
+        
+        if self.child_processor:
+            self.child_processor.begin()
+
         def _begin():
             try:
                 self.cv_animation()
             except:
                 self.end_stream()
                 raise
-        t = threading.Thread(target=_begin)
-        t.start()
+
+        if self.show_anim:
+            t = threading.Thread(target=_begin)
+            t.start()
 
 
 if __name__ == '__main__':
