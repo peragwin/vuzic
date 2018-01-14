@@ -19,10 +19,12 @@ class Processor(metaclass=ABCMeta):
     def __init__(self, **kwargs) -> None:
         self.input_registered = False
         self.args = kwargs
+        self.child_processor = None
 
-    def attach_child(self, child_processor: Processor) -> None:
-        child_processor.register_input(**self.args)
+    def attach_child(self, child_processor) -> None:
+        assert isinstance(child_processor, Processor)
         self.child_processor = child_processor
+        child_processor.register_input(**self.args)
 
     def begin(self):
         assert self.input_registered, "must register input parameters"
@@ -110,7 +112,7 @@ class RawInputProcessor(Processor):
 
         out = self.process_raw(data)
 
-        super().process()
+        super().process(data)
         if self.child_processor:
             self.child_processor.process(out)
 

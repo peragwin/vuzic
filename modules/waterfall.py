@@ -13,10 +13,11 @@ from ..bus import bus
 from vuzic.util import Bucketer, log_power_spectrum, NP_FMT
 
 
-class SpectralBucketer(Processor):
+class Waterfall(Processor):
 
     def __init__(self, n_frames: int, n_buckets: int = 16, show_anim=True):
-        
+        super().__init__()
+
         # Variables that need to be registered
         self.n_frames = 0
         self.fs = 0
@@ -39,7 +40,6 @@ class SpectralBucketer(Processor):
         self.n_samples = n_samples
         self.fs = fs
         self.n_channels = n_channels
-        self.end_stream = end_stream
 
         self.ffts = np.zeros((n_channels, self.n_frames, n_samples // 2), dtype=NP_FMT)
         self.buckets = np.zeros((n_channels, self.n_frames, self.n_buckets), dtype=NP_FMT)
@@ -123,7 +123,7 @@ class SpectralBucketer(Processor):
             data = np.flip(shape, 0)
 
             scaled = cv2.convertScaleAbs(data, alpha=255/alpha2)
-            image = cv2.applyColorMap(scaled, cv2.COLORMAP_OCEAN)
+            image = cv2.applyColorMap(scaled, cv2.COLORMAP_PARULA)
             image = cv2.blur(image, (5,15))
             cv2.imshow('Buckets', image)
 
@@ -156,4 +156,4 @@ class SpectralBucketer(Processor):
 
 
 if __name__ == '__main__':
-    W = Waterfall()
+    W = Waterfall(400)

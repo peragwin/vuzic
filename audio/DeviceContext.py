@@ -48,8 +48,7 @@ class DeviceContext:
 
         processor.register_input(n_samples=n_samples,
                                  fs=fs,
-                                 n_channels=n_channels,
-                                 end_stream=end_stream)
+                                 n_channels=n_channels)
         self.processor = processor
 
     def new_input_streamer(self) -> Callable[[], Coroutine[Any, Any, np.ndarray]]:
