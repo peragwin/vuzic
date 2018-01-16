@@ -74,7 +74,6 @@ class Bucketer:
         self.indices = np.int32(
             np.ceil(frame_size * buckets / f_max)
         )
-        print("indices", self.indices)
 
     @staticmethod
     def get_freq_buckets(s, f_min: int, f_max: int, N: int) -> np.ndarray:

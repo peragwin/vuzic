@@ -45,15 +45,13 @@ class Waterfall(Processor):
         self.buckets = np.zeros((n_channels, self.n_frames, self.n_buckets), dtype=NP_FMT)
 
         self.bucketer = Bucketer(n_samples // 2, self.n_buckets, n_channels, 40, fs // 2)
+        self.window = sp.hanning(self.n_samples)
 
     def process(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
         frame0, frame1 = frames
-
-        window = sp.hanning(self.n_samples)
-
         # for chan in range(self.n_channels):
-        wframe0 = window * frame0
-        wframe1 = window * frame1
+        wframe0 = self.window * frame0
+        wframe1 = self.window * frame1
 
         self.ffts[:, self.fft_index] = fft = log_power_spectrum(wframe0)
         self.buckets[:, self.fft_index] = self.bucketer.bucket(fft)
@@ -117,16 +115,17 @@ class Waterfall(Processor):
             repeat = np.repeat(self.buckets, self.bucket_repeat, axis=2)
             shape = np.r_[repeat[0, self.fft_index:], repeat[0, :self.fft_index]].T
             if self.n_channels == 2:
-                shape = np.c_[shape,
-                    np.r_[repeat[1, self.fft_index::-1], repeat[1, :self.fft_index:-1]].T
+                shape = np.c_[
+                    shape,
+                    np.r_[repeat[1, self.fft_index::-1], repeat[1, :self.fft_index:-1]].T,
+  
                 ]
             data = np.flip(shape, 0)
 
             scaled = cv2.convertScaleAbs(data, alpha=255/alpha2)
             image = cv2.applyColorMap(scaled, cv2.COLORMAP_PARULA)
-            image = cv2.blur(image, (5,15))
+            image = cv2.blur(image, (5,5))
             cv2.imshow('Buckets', image)
-
 
             key = cv2.waitKey(30)
 
@@ -135,7 +134,7 @@ class Waterfall(Processor):
 
     def begin(self):
 
-        def _set_done():
+        def _set_done(*args):
             self.done = True
 
         bus.subscribe("end_stream", _set_done)

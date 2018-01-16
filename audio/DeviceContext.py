@@ -42,7 +42,7 @@ class DeviceContext:
         self.stream_thread = None
         self.stop_streaming = False
         
-        def end_stream():
+        def end_stream(*args):
             self.stop_streaming = True
         bus.subscribe("end_stream", end_stream)
 

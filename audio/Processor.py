@@ -128,13 +128,13 @@ class RawInputProcessor(Processor):
 #             p.begin()
 
 
-class Multiprocessor(Processor):
+class MultiProcessor(Processor):
     def __init__(self, processors: List[Processor]):
         self.processors = processors
 
         self.exit_funcs = []
 
-    def register_input(*args, **kwargs):
+    def register_input(self, *args, **kwargs):
         for p in self.processors:
             p.register_input(*args, **kwargs)
 

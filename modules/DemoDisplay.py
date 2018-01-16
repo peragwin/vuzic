@@ -1,7 +1,7 @@
 import numpy as np
 from collections import namedtuple
 
-from DemoConfig import Config
+from .DemoConfig import Config
 
 class DemoDisplay:
     """ for lack of a better name... 
@@ -20,19 +20,19 @@ class DemoDisplay:
     ])
 
     def __init__(self,
-                 num_channels:    int = 16,
-                 num_per_channel: int = 60,
+                 n_buckets:    int = 16,
+                 n_frames: int = 60,
                  direction:    str   = 'center',
-                 amp_gain:     int   = 50,
-                 diff_gain:    float = 3.5e-4, # I think this is approx the value that was being used
+                 amp_gain:     int   = 40,
+                 diff_gain:    float = 8e-4, # I think this is approx the value that was being used
                  amp_offset:   int   = 400,
                  brightness:   int   = 800,
-                 space_period: int   = 100,
-                 channel_sync: float = 4.5e-4, #1.8e-3, # this one too
+                 space_period: int   = 150,
+                 channel_sync: float = 1.8e-3, #1.8e-3, # this one too
                 ):
 
-        self.num_channels = num_channels
-        self.num_per_channel = num_per_channel
+        self.n_buckets = n_buckets
+        self.n_frames = n_frames
 
         self.config = Config(
             127,
@@ -46,37 +46,37 @@ class DemoDisplay:
         )
 
         self.drivers = self.Drivers(
-            np.zeros(num_channels, dtype=np.float64),
-            np.zeros(num_channels, dtype=np.float64),
+            np.zeros(n_buckets, dtype=np.float64),
+            np.zeros(n_buckets, dtype=np.float64),
         )
 
         self.iter_count = 0
 
         # values are by order then channel because it makes it look cleaner in applyFilter
         self.filter_values = self.FilterValues(
-            np.zeros((2, num_channels), dtype=np.float64),
-            np.zeros((2, num_channels), dtype=np.float64),
+            np.zeros((2, n_buckets), dtype=np.float64),
+            np.zeros((2, n_buckets), dtype=np.float64),
         )
 
         # Using a second order IIR with negative feedback for each channel,
         # implemented in two stages for simplicity
         self.filter_params = self.FilterValues(
-            np.zeros((num_channels, 2, 2), dtype=np.float64),
-            np.zeros((num_channels, 2, 2), dtype=np.float64),
+            np.zeros((n_buckets, 2, 2), dtype=np.float64),
+            np.zeros((n_buckets, 2, 2), dtype=np.float64),
         )
 
-        for i in range(num_channels):
+        for i in range(n_buckets):
             self.filter_params.gain[i] = np.array([
-                [ 1.   , 0.5  ], # first elem is the gain on that channel
-                [- .005,  .995], # this is the lowpass for the feedback mechanism which controls sensitivity
+                [ .95   , 0.1  ], # first elem is the gain on that channel
+                [ .005,  -.995], # this is the lowpass for the feedback mechanism which controls sensitivity
             ])
             self.filter_params.diff[i] = np.array([
-                [ 1.  , 0.5 ],
-                [- .04,  .96],
+                [ .95  , 0.1 ],
+                [ .04,  -.96],
             ])
 
     def applyFilters(self, frame: np.ndarray) -> None:
-        diff_input = np.zeros((2, self.num_channels), dtype=np.float64)
+        diff_input = np.zeros((2, self.n_buckets), dtype=np.float64)
         self.applyFilter(frame, self.filter_values.gain, self.filter_params.gain, diff_input)
         self.applyFilter(diff_input[0], self.filter_values.diff, self.filter_params.diff)
 
@@ -110,9 +110,13 @@ class DemoDisplay:
 
         #print(self.filter_values.gain[0,:], self.filter_values.diff[0,:])
 
-        self.drivers.phase -= dg * np.fabs(self.filter_values.diff[0,:])
+        gain = self.filter_values.gain[0,:]
+        diff = self.filter_values.diff[0,:]
+        #scale = (1+ np.log(gain)) / (1+np.log(np.sum(gain*gain)))
+
+        self.drivers.phase -= dg * np.log(1+np.fabs(diff))
         self.drivers.phase += .001 # add a constant opposing force makes an interesting heatmap of activity
-        self.drivers.phase %= 2 * np.pi # numpy ftw
+        #self.drivers.phase = (self.drivers.phase % (24 * np.pi)) - 12*np.pi # numpy ftw
         self.drivers.amplitude = ao + ag * self.filter_values.gain[0,:]
 
     def applyChannelSync(self):
@@ -159,15 +163,19 @@ class DemoDisplay:
 
     def process(self, frame: np.ndarray) -> np.ndarray:
         """ process a single frame consisting of a power spectrum already
-            split into self.num_channels buckets
-            :return: a np.array[num_channels][num_per_channel] for display """
+            split into self.n_buckets buckets
+            :return: a np.array[n_buckets][n_frames] for display """
+
+        # average left and right
+        if len(frame) == 2:
+            frame = np.mean(frame, axis=0)
 
         self.applyFilters(frame)
         self.applyChannelEffects()
         self.applyChannelSync()
 
-        grid = np.zeros((self.num_per_channel, self.num_channels, 3), dtype=np.float64)
-        half_len = self.num_per_channel // 2
+        grid = np.zeros((self.n_frames, self.n_buckets, 3), dtype=np.float64)
+        half_len = self.n_frames // 2
         for i in range(half_len):
             col = self.getPixelBlock(i)
             grid[half_len + i] = col
