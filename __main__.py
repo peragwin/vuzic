@@ -5,6 +5,7 @@ from .audio.DeviceContext import DeviceContext
 from .audio.Processor import RawInputProcessor, MultiProcessor
 from .modules.waterfall import Waterfall
 from .modules.SimLedGrid import SimLedGrid
+from .modules.Cepstrum import Cepstrum
 from .server import Server
 from .util import Bucketer, log_power_spectrum, NP_FMT
 
@@ -16,11 +17,12 @@ def main(device: int = -1, mode: str = 'by_row'):
     #DEVICE_INDEX = 0 # -1 is Auto
 
     P = RawInputProcessor(n_samples=N_SAMPLES, n_channels=2, fs=FS)
-
     W = Waterfall(400, show_anim=False)
-    G = SimLedGrid(mode, n_buckets=16, n_frames=60, n_samples=N_SAMPLES, n_channels=2, fs=FS)
-    
-    P.attach_child(MultiProcessor([W, G]))
+    G = SimLedGrid(mode, n_buckets=16, n_frames=60, n_samples=N_SAMPLES//2, n_channels=2, fs=FS)
+    C = Cepstrum(400, n_samples=N_SAMPLES, fs=FS, n_channels=2)
+
+    #W.attach_child(G)#MultiProcessor([G, C]))
+    P.attach_child(MultiProcessor([W, G, C]))
 
     A = DeviceContext(P, n_samples=N_SAMPLES, n_channels=2, fs=FS, device_index=device)
 

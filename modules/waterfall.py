@@ -49,17 +49,20 @@ class Waterfall(Processor):
 
     def process(self, frames: Tuple[np.ndarray, np.ndarray]) -> None:
         frame0, frame1 = frames
-        # for chan in range(self.n_channels):
+
         wframe0 = self.window * frame0
         wframe1 = self.window * frame1
 
-        self.ffts[:, self.fft_index] = fft = log_power_spectrum(wframe0)
-        self.buckets[:, self.fft_index] = self.bucketer.bucket(fft)
+        self.ffts[:, self.fft_index] = fft0 = log_power_spectrum(wframe0)
+        self.buckets[:, self.fft_index] = self.bucketer.bucket(fft0)
        
-        self.ffts[:, self.fft_index+1] = fft = log_power_spectrum(wframe1)
-        self.buckets[:, self.fft_index+1] = self.bucketer.bucket(fft)
+        self.ffts[:, self.fft_index+1] = fft1 = log_power_spectrum(wframe1)
+        self.buckets[:, self.fft_index+1] = self.bucketer.bucket(fft1)
        
         self.fft_index = (self.fft_index + 2) % self.n_frames
+
+        if self.child_processor:
+            self.child_processor.process((fft0, fft1))
 
     def mp_animation(self):
         fig, ax = plt.subplots()
