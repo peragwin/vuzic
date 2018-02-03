@@ -19,7 +19,7 @@ class Cepstrum(Processor):
         self.n_samples = n_samples
         self.fs = fs
         self.n_channels = n_channels
-        self.show_anim = True
+        self.show_anim = show_anim
 
         self.window = sp.hamming(self.n_samples)
         self.frames = np.zeros((n_channels, self.n_frames, self.n_samples // 2))

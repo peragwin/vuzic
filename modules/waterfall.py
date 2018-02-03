@@ -54,15 +54,15 @@ class Waterfall(Processor):
         wframe1 = self.window * frame1
 
         self.ffts[:, self.fft_index] = fft0 = log_power_spectrum(wframe0)
-        self.buckets[:, self.fft_index] = self.bucketer.bucket(fft0)
+        self.buckets[:, self.fft_index] = buckets0 = self.bucketer.bucket(fft0)
        
         self.ffts[:, self.fft_index+1] = fft1 = log_power_spectrum(wframe1)
-        self.buckets[:, self.fft_index+1] = self.bucketer.bucket(fft1)
+        self.buckets[:, self.fft_index+1] = buckets1 = self.bucketer.bucket(fft1)
        
         self.fft_index = (self.fft_index + 2) % self.n_frames
 
         if self.child_processor:
-            self.child_processor.process((fft0, fft1))
+            self.child_processor.process((buckets0, buckets1))
 
     def mp_animation(self):
         fig, ax = plt.subplots()

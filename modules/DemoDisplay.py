@@ -23,7 +23,7 @@ class DemoDisplay:
                  n_buckets:    int = 16,
                  n_frames: int = 60,
                  direction:    str   = 'center',
-                 amp_gain:     int   = 40,
+                 amp_gain:     int   = 20,
                  diff_gain:    float = 8e-4, # I think this is approx the value that was being used
                  amp_offset:   int   = 400,
                  brightness:   int   = 800,
