@@ -59,10 +59,11 @@ class DeviceContext:
                               input_device_index=self.device_index,
                               frames_per_buffer=self.n_samples)
 
+        print("opened stream", stream)
+
         async def _streamer() -> np.ndarray:
-            return np.fromstring(
-                stream.read(self.n_samples, exception_on_overflow=False),
-                dtype=np.int16)
+            buf = stream.read(self.n_samples, exception_on_overflow=False)
+            return np.frombuffer(buf, dtype=np.int16)
 
         return _streamer
 

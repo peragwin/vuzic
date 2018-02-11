@@ -1,5 +1,4 @@
 import sys
-import graphene
 
 from .audio.DeviceContext import DeviceContext
 from .audio.Processor import RawInputProcessor, MultiProcessor
@@ -16,14 +15,14 @@ def main(device: int = -1, mode: str = 'by_row'):
     FS = 44100
     #DEVICE_INDEX = 0 # -1 is Auto
 
-    P = RawInputProcessor(n_samples=N_SAMPLES, n_channels=2, fs=FS)
+    P = RawInputProcessor(n_samples=N_SAMPLES, n_channels=1, fs=FS)
     W = Waterfall(400, show_anim=False)
-    G = SimLedGrid(mode, n_buckets=16, n_frames=60, n_samples=N_SAMPLES//2, n_channels=2, fs=FS)
+    # G = SimLedGrid(mode, n_buckets=16, n_frames=60, n_samples=N_SAMPLES//2, n_channels=2, fs=FS)
     #C = Cepstrum(400, n_samples=N_SAMPLES, fs=FS, n_channels=2)
-    MF = ModulationFrequency(n_frames=512, n_buckets=16, n_channels=2)
+    MF = ModulationFrequency(n_frames=512, n_buckets=16, n_channels=2, fs=FS)
     W.attach_child(MF)
 
-    P.attach_child(MultiProcessor([W, G]))
+    P.attach_child(MultiProcessor([W]))
 
     A = DeviceContext(P, n_samples=N_SAMPLES, n_channels=2, fs=FS, device_index=device)
 

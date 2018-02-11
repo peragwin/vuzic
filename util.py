@@ -140,3 +140,27 @@ class TriangleBucketer(Bucketer):
         for i in range(self.n_channels):
             out[i] = np.dot(frame[i], filters)
         return out
+
+class FFTDecimator():
+    levels = 8
+    def __init__(self):
+        self.lpf = None # TODO
+
+    def process(self, frame: np.ndarray) -> np.ndarray:
+        pass
+
+class PhaseLockedLoop():
+    """
+    ex: PLL = PhaseLockedLoop(self.N_samples, 19000, self.sample_rate)
+    """
+    phase = 0
+    beta = .25
+    def __init__(self,size,freq,samplerate):
+        self.pll = np.exp(2j*np.pi*freq/samplerate*np.r_[0:size])
+        self.size = size
+        self.freq=freq
+        self.samplerate = samplerate
+    def adjust(self,pilot):
+        dphase = np.angle( self.pll * np.conj(pilot))
+        self.phase += self.beta * dphase
+        self.pll = np.exp(2j*np.pi*self.freq/self.samplerate*(np.r_[0:self.size] - self.phase))
